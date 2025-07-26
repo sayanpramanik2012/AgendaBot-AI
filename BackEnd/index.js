@@ -46,23 +46,23 @@ const oauth2Client = new google.auth.OAuth2(
 
 // Helper function to ensure user exists
 function ensureUser(profile) {
-  try {
-    let user = statements.getUserByEmail.get(profile.email);
-    if (!user) {
-      const userId = uuidv4();
-      statements.createUser.run(
-        userId,
-        profile.email,
-        profile.name,
-        profile.id
-      );
-      user = statements.getUserById.get(userId);
-    }
-    return user;
-  } catch (error) {
-    console.error("Error ensuring user:", error);
-    throw error;
+  if (!profile?.email) {
+    throw new Error("Google profile did not contain an e-mail address");
   }
+
+  let user = statements.getUserByEmail.get(profile.email);
+
+  if (!user) {
+    const userId = uuidv4();
+    statements.createUser.run(
+      userId,
+      profile.email,
+      profile.name || null,
+      profile.id
+    );
+    user = statements.getUserById.get(userId);
+  }
+  return user;
 }
 
 // Auth routes
@@ -83,16 +83,13 @@ app.get("/auth/google/callback", async (req, res) => {
   const { code } = req.query;
   try {
     const { tokens } = await oauth2Client.getToken(code);
-
-    // Get user profile
     oauth2Client.setCredentials(tokens);
+
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data: profile } = await oauth2.userinfo.get();
 
-    // Save user and tokens
-    const user = ensureUser(profile);
+    const user = ensureUser(profile); // will throw if invalid
 
-    // Save tokens to database
     statements.saveTokens.run(
       uuidv4(),
       user.id,
@@ -105,9 +102,9 @@ app.get("/auth/google/callback", async (req, res) => {
     req.session.tokens = tokens;
 
     res.redirect("http://localhost:4200");
-  } catch (error) {
-    console.error("Error retrieving tokens:", error);
-    res.status(500).send("Authentication failed. Please try again.");
+  } catch (err) {
+    console.error("Google OAuth callback failed:", err);
+    res.status(500).send("Authentication failed.");
   }
 });
 

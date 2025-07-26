@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  node-backend:
+    image: backend
+    container_name: node-backend
+    ports:
+      - "3011:3000"
+    environment:
+      - PORT=3000
+      - GEMINI_API_KEY=GEMINI_API_KEY
+      - GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET
+      - OAUTH_CALLBACK_URL=http://localhost:3000/auth/google/callback
+      - SESSION_SECRET=some_long_random_string
+
+  angular-frontend:
+    image: frontend
+    container_name: angular-frontend
+    ports:
+      - "8221:80"
